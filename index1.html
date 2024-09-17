@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <title>Dashboard</title>
+</head>
+<body>
+
+    <div id="dashboard" style="display: flex; flex-direction: column;">
+        <div id="map" style="height: 400px;"></div>
+        <canvas id="elevationChart" style="max-height: 300px;"></canvas>
+      </div>
+      
+    <!-- <div id="dashboard" style="display: flex; flex-direction: column;">
+        <div id="map" style="height: 400px;"></div>
+        <canvas id="elevationChart" style="max-height: 300px;"></canvas>
+      </div> -->
+
+      <!-- <script>
+        // Initialize the Leaflet map
+        const map = L.map('map').setView([20, 0], 3); // Centered on Africa
+      
+        // Add a tile layer (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: 'Map data © OpenStreetMap contributors',
+          maxZoom: 18,
+        }).addTo(map);
+      
+        // Fetch GeoJSON Data
+        fetch('https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_10m_geography_regions_elevation_points.geojson')
+          .then((response) => response.json())
+          .then((data) => {
+            // Add GeoJSON layer to the map
+            L.geoJSON(data, {
+              onEachFeature: (feature, layer) => {
+                const { name, elevation, region, featureclass } = feature.properties;
+                layer.bindPopup(
+                  `<b>Name:</b> ${name}<br><b>Elevation:</b> ${elevation} m<br><b>Region:</b> ${region}<br><b>Feature:</b> ${featureclass}`
+                );
+              }
+            }).addTo(map);
+      
+            // Call function to update the chart with the elevation data
+            updateElevationChart(data);
+          });
+      </script> -->
+
+      <!-- <script>
+        // Function to update the chart
+        function updateElevationChart(geojsonData) {
+          const names = [];
+          const elevations = [];
+      
+          geojsonData.features.forEach((feature) => {
+            const { name, elevation } = feature.properties;
+            names.push(name);
+            elevations.push(elevation);
+          });
+      
+          const ctx = document.getElementById('elevationChart').getContext('2d');
+          new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: names,
+              datasets: [{
+                label: 'Elevation (m)',
+                data: elevations,
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+              }]
+            },
+            options: {
+              scales: {
+                y: {
+                  beginAtZero: true
+                }
+              }
+            }
+          });
+        }
+      </script> -->
+      
+      <script>
+        const map = L.map('map').setView([20, 0], 3); // Center on Africa
+      
+        // Add a tile layer (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: 'Map data © OpenStreetMap contributors',
+          maxZoom: 18,
+        }).addTo(map);
+      
+        let markers = []; // Array to store markers
+      
+        // Fetch GeoJSON Data
+        fetch('https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_10m_geography_regions_elevation_points.geojson')
+          .then((response) => response.json())
+          .then((data) => {
+            L.geoJSON(data, {
+              onEachFeature: (feature, layer) => {
+                const { name, elevation, region, featureclass } = feature.properties;
+      
+                // Bind popup for each marker
+                layer.bindPopup(
+                  `<b>Name:</b> ${name}<br><b>Elevation:</b> ${elevation} m<br><b>Region:</b> ${region}<br><b>Feature:</b> ${featureclass}`
+                );
+      
+                // Store markers in the array
+                markers.push({
+                  name: name,
+                  marker: layer,
+                  coordinates: feature.geometry.coordinates
+                });
+              }
+            }).addTo(map);
+      
+            // Call function to update the chart with the elevation data
+            updateElevationChart(data);
+          });
+      </script>
+
+      <script>
+        // Function to update the chart
+        function updateElevationChart(geojsonData) {
+          const names = [];
+          const elevations = [];
+      
+          geojsonData.features.forEach((feature) => {
+            const { name, elevation } = feature.properties;
+            names.push(name);
+            elevations.push(elevation);
+          });
+      
+          const ctx = document.getElementById('elevationChart').getContext('2d');
+          const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: names,
+              datasets: [{
+                label: 'Elevation (m)',
+                data: elevations,
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+              }]
+            },
+            options: {
+              scales: {
+                y: {
+                  beginAtZero: true
+                }
+              },
+              onClick: (event, elements) => {
+                if (elements.length > 0) {
+                  const index = elements[0].index;
+                  const clickedName = names[index];
+      
+                  // Find the corresponding marker
+                  const markerData = markers.find(m => m.name === clickedName);
+                  if (markerData) {
+                    // Zoom in and open the popup for the corresponding marker
+                    map.setView([markerData.coordinates[1], markerData.coordinates[0]], 8);
+                    markerData.marker.openPopup();
+      
+                    // Optionally: Highlight the marker (by changing icon or adding a border)
+                    markerData.marker.setStyle({
+                      color: 'red', // Example to highlight
+                    });
+      
+                    // Reset the highlight after some time (Optional)
+                    setTimeout(() => {
+                      markerData.marker.setStyle({
+                        color: '#3388ff' // Default Leaflet marker color
+                      });
+                    }, 3000); // Highlight for 3 seconds
+                  }
+                }
+              }
+            }
+          });
+        }
+      </script>
+      
+    
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geography Regions Elevation Points</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    #header {
+      background-color: #4CAF50;
+      color: white;
+      text-align: center;
+      padding: 10px;
+      font-size: 24px;
+    }
+    #dashboard {
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+    #map {
+      height: 400px;
+      margin-bottom: 20px;
+    }
+    canvas {
+      max-height: 300px;
+    }
+    /* Styling for the Home button */
+    .leaflet-control-home {
+      background-color: white;
+      padding: 6px;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      text-align: center;
+    }
+    .leaflet-control-home:hover {
+      background-color: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="header">
+    Geography Regions Elevation Points
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard">
+    <div id="map"></div>
+    <canvas id="elevationChart"></canvas>
+  </div>
+
+  <script>
+    // Initial center and zoom level for the map (Africa)
+    const initialCenter = [20, 0];
+    const initialZoom = 3;
+
+    const map = L.map('map').setView(initialCenter, initialZoom); 
+
+    // Add a tile layer (OpenStreetMap)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: 'Map data © OpenStreetMap contributors',
+      maxZoom: 18,
+    }).addTo(map);
+
+    let markers = []; // Array to store markers
+
+    // Fetch GeoJSON Data
+    fetch('https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_10m_geography_regions_elevation_points.geojson')
+      .then((response) => response.json())
+      .then((data) => {
+        L.geoJSON(data, {
+          pointToLayer: (feature, latlng) => {
+            // Create green circle markers
+            return L.circleMarker(latlng, {
+              radius: 8,
+              fillColor: "green", // Green marker
+              color: "green",     // Green border
+              weight: 1,
+              opacity: 1,
+              fillOpacity: 0.8
+            });
+          },
+          onEachFeature: (feature, layer) => {
+            const { name, elevation, region, featureclass } = feature.properties;
+
+            // Bind popup for each marker
+            layer.bindPopup(
+              `<b>Name:</b> ${name}<br><b>Elevation:</b> ${elevation} m<br><b>Region:</b> ${region}<br><b>Feature:</b> ${featureclass}`
+            );
+
+            // Store markers in the array
+            markers.push({
+              name: name,
+              marker: layer,
+              coordinates: feature.geometry.coordinates
+            });
+          }
+        }).addTo(map);
+
+        // Call function to update the chart with the elevation data
+        updateElevationChart(data);
+      });
+
+    // Function to update the chart
+    function updateElevationChart(geojsonData) {
+      const names = [];
+      const elevations = [];
+
+      geojsonData.features.forEach((feature) => {
+        const { name, elevation } = feature.properties;
+        names.push(name);
+        elevations.push(elevation);
+      });
+
+      const ctx = document.getElementById('elevationChart').getContext('2d');
+      const chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: names,
+          datasets: [{
+            label: 'Elevation (m)',
+            data: elevations,
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          },
+          onClick: (event, elements) => {
+            if (elements.length > 0) {
+              const index = elements[0].index;
+              const clickedName = names[index];
+
+              // Find the corresponding marker
+              const markerData = markers.find(m => m.name === clickedName);
+              if (markerData) {
+                // Zoom in and open the popup for the corresponding marker
+                map.setView([markerData.coordinates[1], markerData.coordinates[0]], 8);
+                markerData.marker.openPopup();
+
+                // Optionally: Highlight the marker (by changing its border color temporarily)
+                markerData.marker.setStyle({
+                  color: 'yellow', // Highlight color
+                });
+
+                // Reset the highlight after some time (Optional)
+                setTimeout(() => {
+                  markerData.marker.setStyle({
+                    color: 'green' // Back to the original green
+                  });
+                }, 3000); // Highlight for 3 seconds
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Create a custom control for the "Home" button
+    const homeButton = L.Control.extend({
+      options: {
+        position: 'topleft' // The position of the control on the map
+      },
+      onAdd: function(map) {
+        // Create a container for the home button
+        const container = L.DomUtil.create('div', 'leaflet-control-home');
+        container.innerHTML = 'Home'; // Set button text
+
+        // Handle click event to reset the map view
+        container.onclick = function() {
+          map.setView(initialCenter, initialZoom); // Reset to the initial view
+        };
+
+        return container;
+      }
+    });
+
+    // Add the home button to the map
+    map.addControl(new homeButton());
+
+  </script>
+
+</body>
+</html>
